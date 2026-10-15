@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang='zh-Hant'>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1'>
+  <title>郵資自動計算器</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, 'Microsoft JhengHei', sans-serif;
+      background: #f3f7f4;
+      margin: 0;
+      padding: 22px;
+      color: #18352a;
+    }
+    .card {
+      max-width: 480px;
+      margin: auto;
+      background: #fff;
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 8px 30px #0001;
+    }
+    h1 {
+      font-size: 26px;
+      margin: 0 0 6px;
+      color: #16794b;
+    }
+    .sub {
+      color: #6a786f;
+      margin-bottom: 24px;
+    }
+    .label {
+      font-weight: 700;
+      margin: 18px 0 8px;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 15px;
+      border: 1px solid #cfd9d3;
+      border-radius: 12px;
+      font-size: 20px;
+    }
+    .methods {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .methods button {
+      padding: 15px;
+      border: 2px solid #d9e5de;
+      background: #fff;
+      border-radius: 12px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .methods button.on {
+      background: #e7f5ed;
+      border-color: #168653;
+      color: #12683f;
+      font-weight: 800;
+    }
+    .result {
+      margin-top: 22px;
+      background: #eaf7ef;
+      border-radius: 16px;
+      padding: 18px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 8px 0;
+    }
+    .big {
+      font-size: 30px;
+      font-weight: 900;
+      color: #147747;
+    }
+    .postage-label {
+      font-size: 24px;
+      font-weight: 900;
+      color: #c62828;
+    }
+    .postage-big {
+      font-size: 40px;
+      font-weight: 900;
+      color: #d71920;
+    }
+    .stamp-tip {
+      display: none;
+      margin-top: 14px;
+      padding: 14px 16px;
+      background: #fff7e8;
+      border: 2px solid #f0b44d;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #4a3300;
+      line-height: 1.6;
+    }
+    .stamp-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #8c5b00;
+      margin-bottom: 6px;
+    }
+    .plan-a {
+      color: #1e6091;
+      background: #e8f4f8;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin-top: 4px;
+      display: block;
+    }
+    .plan-b {
+      color: #d94e10;
+      background: #fdeee9;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin-top: 6px;
+      display: block;
+    }
+    .warn {
+      color: #b54708;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+    .reset {
+      width: 100%;
+      margin-top: 18px;
+      padding: 13px;
+      border: 0;
+      border-radius: 12px;
+      background: #edf1ef;
+      font-size: 17px;
+      cursor: pointer;
+    }
+    .note {
+      font-size: 13px;
+      color: #78847d;
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class='card'>
+    <h1>📮 郵資自動計算器</h1>
+    <div class='sub'>輸入重量、選擇寄送方式，即時計算郵資與找零</div>
+    
+    <div class='label'>包裹重量（g）</div>
+    <input id='weight' type='number' inputmode='decimal' min='0' max='2000' placeholder='例如：30'>
+    
+    <div class='label'>寄送方式</div>
+    <div class='methods'>
+      <button id='normal' class='on'>✉️ 平信</button>
+      <button id='registered'>📨 掛號</button>
+    </div>
+    
+    <div class='label'>付款金額（元）</div>
+    <input id='paid' type='number' inputmode='numeric' min='0' placeholder='例如：100'>
+    
+    <div class='result'>
+      <div class='row'>
+        <span class='postage-label'>應付郵資</span>
+        <span class='postage-big' id='postage'>—</span>
+      </div>
+      <div class='row'>
+        <span>找零金額</span>
+        <span class='big' id='change'>—</span>
+      </div>
+      <div id='msg' class='warn'></div>
+      <div id='stampTip' class='stamp-tip'></div>
+    </div>
+    
+    <button class='reset' id='reset'>重新計算</button>
+    <div class='note'>適用重量 0–2000g。郵資依提供的級距與郵票建議設定。</div>
+  </div>
+
+  <script>
+    const bands = [20, 50, 100, 250, 500, 1000, 2000];
+    const normal = [8, 16, 24, 40, 72, 112, 160];
+    const registered = [28, 36, 44, 60, 92, 132, 180];
+
+    // 依據圖片說明的郵票搭配表
+    const normalStamps = {
+      24: "郵票 16 + 8 元",
+      40: "郵票 32 + 8 元",
+      72: "郵票 32×2 張 + 8×1 張",
+      112: "郵票 32×3 張 + 16×1 張",
+      160: {
+        a: "a. 郵票 32×5 張",
+        b: "b. 郵票 28×5 張 + 12×1 張 + 8×1 張"
+      }
+    };
+
+    const registeredStamps = {
+      36: "郵票 28 + 8 元",
+      44: "郵票 28 + 16 元",
+      60: "郵票 28 + 32 元",
+      92: "郵票 28×3 張 + 8 元",
+      132: "郵票 28×4 張 + 20 元",
+      180: "郵票 32×5 張 + 12×1 張 + 8×1 張"
+    };
+
+    let mode = 'normal';
+    const w = document.querySelector('#weight');
+    const p = document.querySelector('#paid');
+    const po = document.querySelector('#postage');
+    const ch = document.querySelector('#change');
+    const msg = document.querySelector('#msg');
+    const stampTip = document.querySelector('#stampTip');
+    const nb = document.querySelector('#normal');
+    const rb = document.querySelector('#registered');
+
+    function calc() {
+      let x = Number(w.value);
+      let pay = Number(p.value);
+      msg.textContent = '';
+      stampTip.style.display = 'none';
+      stampTip.innerHTML = '';
+
+      if (!w.value) {
+        po.textContent = '—';
+        ch.textContent = '—';
+        return;
+      }
+
+      if (x < 0 || x > 2000) {
+        po.textContent = '—';
+        ch.textContent = '—';
+        msg.textContent = '重量需介於 0–2000g';
+        return;
+      }
+
+      let i = bands.findIndex(b => x <= b);
+      let fee = (mode === 'normal' ? normal : registered)[i];
+      po.textContent = fee + ' 元';
+
+      // 取得建議郵票資訊
+      const currentStamps = mode === 'normal' ? normalStamps : registeredStamps;
+      const stampData = currentStamps[fee];
+
+      if (stampData) {
+        let html = `<div class="stamp-title">📌 建議郵票組合：</div>`;
+        if (typeof stampData === 'object') {
+          // 雙方案（如 160 元）
+          html += `<span class="plan-a">${stampData.a}</span>`;
+          html += `<span class="plan-b">${stampData.b}</span>`;
+        } else {
+          // 單一方案
+          html += `<div>${stampData}</div>`;
+        }
+        stampTip.innerHTML = html;
+        stampTip.style.display = 'block';
+      }
+
+      if (p.value) {
+        let c = pay - fee;
+        ch.textContent = c >= 0 ? c + ' 元' : '—';
+        if (c < 0) msg.textContent = '付款金額不足 ' + (-c) + ' 元';
+      } else {
+        ch.textContent = '—';
+      }
+    }
+
+    function setMode(m) {
+      mode = m;
+      nb.classList.toggle('on', m === 'normal');
+      rb.classList.toggle('on', m === 'registered');
+      calc();
+    }
+
+    nb.onclick = () => setMode('normal');
+    rb.onclick = () => setMode('registered');
+    w.oninput = calc;
+    p.oninput = calc;
+    document.querySelector('#reset').onclick = () => {
+      w.value = '';
+      p.value = '';
+      setMode('normal');
+      w.focus();
+    };
+  </script>
+</body>
+</html>
